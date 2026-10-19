@@ -103,6 +103,14 @@ async def test_send_and_edit_post_to_seed_with_the_relay_token():
 
 
 @pytest.mark.asyncio
+async def test_a_cron_send_is_filed_as_a_delivery():
+    adapter, recorder = _adapter(), _Recorder()
+    with _patched_client(recorder):
+        await adapter.send("1", "Morning brief", metadata={"job_id": "c912b0758feb"})
+    assert b'"kind":"delivery"' in recorder.requests[0].content
+
+
+@pytest.mark.asyncio
 async def test_approval_buttons_resolve_once_through_the_gateway_resolver():
     adapter, recorder = _adapter(), _Recorder()
     with _patched_client(recorder):

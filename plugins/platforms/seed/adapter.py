@@ -111,7 +111,8 @@ class SeedAdapter(BasePlatformAdapter):
 
     async def send(self, chat_id: str, content: str, reply_to: Optional[str] = None,
                    metadata: Optional[Dict[str, Any]] = None) -> SendResult:
-        return await self._create(chat_id, "reply", content, reply_to=reply_to)
+        kind = "delivery" if (metadata or {}).get("job_id") else "reply"
+        return await self._create(chat_id, kind, content, reply_to=reply_to)
 
     async def edit_message(self, chat_id: str, message_id: str, content: str, *,
                            finalize: bool = False) -> SendResult:
