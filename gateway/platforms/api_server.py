@@ -1486,6 +1486,8 @@ class APIServerAdapter(BasePlatformAdapter):
             ("GET", "/v1/capabilities", self._handle_capabilities),
             ("GET", "/v1/skills", self._handle_skills),
             ("GET", "/v1/toolsets", self._handle_toolsets),
+            ("GET", "/api/staff", self._handle_list_staff),
+            ("PUT", "/api/staff/{name}", self._handle_update_staff),
             ("GET", "/api/sessions", self._handle_list_sessions),
             ("POST", "/api/sessions", self._handle_create_session),
             ("GET", "/api/sessions/{session_id}", self._handle_get_session),
@@ -2071,6 +2073,37 @@ class APIServerAdapter(BasePlatformAdapter):
                 "session_chat_stream": {"method": "POST", "path": "/api/sessions/{session_id}/chat/stream"},
             },
         })
+
+    async def _handle_list_staff(self, request: "web.Request") -> "web.Response":
+        """GET /api/staff — the staff personas (skills/staff) with content and on/off state."""
+        auth_err = self._check_auth(request)
+        if auth_err:
+            return auth_err
+        from hermes_cli.staff import list_staff
+        return web.json_response({"staff": list_staff()})
+
+    async def _handle_update_staff(self, request: "web.Request") -> "web.Response":
+        """PUT /api/staff/{name} — save a persona's content and/or turn it on or off."""
+        auth_err = self._check_auth(request)
+        if auth_err:
+            return auth_err
+        from hermes_cli.staff import save_staff
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        content, enabled = body.get("content"), body.get("enabled")
+        if content is not None and not isinstance(content, str):
+            return web.json_response({"error": "content must be a string"}, status=400)
+        if enabled is not None and not isinstance(enabled, bool):
+            return web.json_response({"error": "enabled must be true or false"}, status=400)
+        try:
+            persona = save_staff(request.match_info["name"], content=content, enabled=enabled)
+        except KeyError:
+            return web.json_response({"error": "Persona not found"}, status=404)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"persona": persona})
 
     async def _handle_skills(self, request: "web.Request") -> "web.Response":
         """GET /v1/skills — list installed skills visible to the API-server agent.
