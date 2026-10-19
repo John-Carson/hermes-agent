@@ -277,6 +277,61 @@ class TestRunStatus:
                 assert status["session_id"] == "space-session"
 
     @pytest.mark.asyncio
+    async def test_named_session_without_history_continues_that_session(self, adapter):
+        app = _create_runs_app(adapter)
+        stored = [{"role": "user", "content": "My word is heron."}, {"role": "assistant", "content": "Noted."}]
+        async with TestClient(TestServer(app)) as cli:
+            with patch.object(adapter, "_create_agent") as mock_create, patch.object(
+                adapter, "_conversation_history_for_session", return_value=stored
+            ) as load_history:
+                mock_agent = MagicMock()
+                mock_agent.run_conversation.return_value = {"final_response": "heron"}
+                mock_agent.session_prompt_tokens = 0
+                mock_agent.session_completion_tokens = 0
+                mock_agent.session_total_tokens = 0
+                mock_create.return_value = mock_agent
+
+                resp = await cli.post("/v1/runs", json={"input": "What is my word?", "session_id": "seed-chat"})
+                run_id = (await resp.json())["run_id"]
+                for _ in range(20):
+                    status = await (await cli.get(f"/v1/runs/{run_id}")).json()
+                    if status["status"] == "completed":
+                        break
+                    await asyncio.sleep(0.05)
+
+                load_history.assert_awaited_once_with("seed-chat")
+                assert mock_agent.run_conversation.call_args.kwargs["conversation_history"] == stored
+
+    @pytest.mark.asyncio
+    async def test_explicit_history_wins_over_the_named_session(self, adapter):
+        app = _create_runs_app(adapter)
+        explicit = [{"role": "user", "content": "explicit"}]
+        async with TestClient(TestServer(app)) as cli:
+            with patch.object(adapter, "_create_agent") as mock_create, patch.object(
+                adapter, "_conversation_history_for_session", return_value=[]
+            ) as load_history:
+                mock_agent = MagicMock()
+                mock_agent.run_conversation.return_value = {"final_response": "ok"}
+                mock_agent.session_prompt_tokens = 0
+                mock_agent.session_completion_tokens = 0
+                mock_agent.session_total_tokens = 0
+                mock_create.return_value = mock_agent
+
+                resp = await cli.post(
+                    "/v1/runs",
+                    json={"input": "hi", "session_id": "seed-chat", "conversation_history": explicit},
+                )
+                run_id = (await resp.json())["run_id"]
+                for _ in range(20):
+                    status = await (await cli.get(f"/v1/runs/{run_id}")).json()
+                    if status["status"] == "completed":
+                        break
+                    await asyncio.sleep(0.05)
+
+                load_history.assert_not_awaited()
+                assert mock_agent.run_conversation.call_args.kwargs["conversation_history"] == explicit
+
+    @pytest.mark.asyncio
     async def test_status_not_found_returns_404(self, adapter):
         app = _create_runs_app(adapter)
         async with TestClient(TestServer(app)) as cli:

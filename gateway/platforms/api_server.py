@@ -4850,6 +4850,10 @@ class APIServerAdapter(BasePlatformAdapter):
 
         run_id = f"run_{uuid.uuid4().hex}"
         session_id = body.get("session_id") or stored_session_id or run_id
+        # A run that names an existing session continues it, like
+        # /api/sessions/{id}/chat, while keeping the run's approval events.
+        if not conversation_history and body.get("session_id"):
+            conversation_history = await self._conversation_history_for_session(session_id)
         # Approval queues gate host-side tool execution and must be isolated
         # per API run.  Client-provided session IDs and memory session keys are
         # conversation/memory scopes, not authorization namespaces: multiple
