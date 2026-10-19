@@ -1,0 +1,41 @@
+name: seed-platform
+label: Seed
+kind: platform
+version: 1.0.0
+description: >
+  Seed (findjayu.com) as a Hermes messaging platform. Seed's web and iOS app is the
+  chat client: replies, streamed edits, cron deliveries, and approval buttons are
+  posted to Seed's API, which stores them and pushes them to the phone. Seed sends
+  messages and button taps to this adapter's HTTP listener, which should only be
+  reachable on a private network (for example the kamal Docker network).
+author: John-Carson
+requires_env:
+  - name: SEED_URL
+    description: "Seed base URL, e.g. https://findjayu.com"
+    prompt: "Seed URL"
+    password: false
+  - name: SEED_RELAY_TOKEN
+    description: "Seed API token with the hermes:relay scope (Bearer)"
+    prompt: "Seed relay token"
+    password: true
+  - name: SEED_INBOUND_SECRET
+    description: "Shared secret Seed sends in X-Seed-Secret when it calls this adapter"
+    prompt: "Inbound shared secret"
+    password: true
+optional_env:
+  - name: SEED_LISTEN_HOST
+    description: "Listener host (default 0.0.0.0; keep the port off the public internet)"
+    prompt: "Listener host"
+    password: false
+  - name: SEED_LISTEN_PORT
+    description: "Listener port (default 8650)"
+    prompt: "Listener port"
+    password: false
+  - name: SEED_ALLOWED_USERS
+    description: "Comma-separated Seed user IDs allowed to talk to the agent"
+    prompt: "Allowed Seed user IDs"
+    password: false
+  - name: SEED_HOME_CHANNEL
+    description: "Chat ID for cron delivery (deliver=seed), e.g. seed:1"
+    prompt: "Home chat ID"
+    password: false
